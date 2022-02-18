@@ -1,0 +1,190 @@
+---
+# tasks file for node
+- name: Update apt-get repo and cache
+  apt:
+    update_cache: yes
+    force_apt_get: yes
+    cache_valid_time: 3600
+
+- name: install build essential
+  apt:
+    name: build-essential
+    state: present
+
+- name: install git
+  apt:
+    name: git
+    state: present
+
+- name: test if git is present
+  command: git --version
+  register: gitversion
+  changed_when: false
+
+- name: Check if a reboot is needed for Debian and Ubuntu boxes
+  register: reboot_required_file
+  stat: path=/var/run/reboot-required get_md5=no
+
+- name: Remove old PLC folder
+  become: yes
+  ansible.builtin.file:
+    path: /home/devel/PLC
+    state: absent
+    
+- name: Remove old log folder
+  become: yes
+  ansible.builtin.file:
+    path: /home/devel/log
+    state: absent
+    
+
+- name: Remove old trafficgenerators folder
+  become: yes
+  ansible.builtin.file:
+    path: /home/devel/trafficgenerators
+    state: absent
+    
+- name: Clone PLC
+  become: yes
+  become_user: devel
+  git:
+    repo: 'https://github.com/NTAS2/PLC.git'
+    dest: /home/devel/PLC
+
+
+- name: Install Perl Switch
+  apt:
+    name: libswitch-perl
+    state: present
+
+- name: Install Perl Net::Syslog
+  apt:
+    name: libnet-syslogd-perl
+    state: present
+
+- name: Install Perl Logger::syslog
+  apt:
+    name: liblogger-syslog-perl
+    state: present
+
+- name: Install cpanm
+  apt:
+    name: cpanminus
+    state: present
+
+- name: Install Net::Syslog (CPAN)
+  community.general.cpanm:
+    name: Net::Syslog
+
+- name: Remove file (PLC.service.j2)
+  ansible.builtin.file:
+    path: /etc/system/system/PLC.service.j2
+    state: absent
+
+- name: Install PLC service
+  template:
+    src: PLC.service.j2
+    dest: "/etc/systemd/system/plc.service"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable PLC and reload systemd
+  service:
+    name: plc
+    daemon_reload: yes
+    enabled: yes
+    
+- name: Start PLC
+  service:
+    name: plc
+    state: started
+
+- name: Clone traffic generatos
+  become: yes
+  become_user: devel
+  git:
+    repo: 'https://github.com/DPMI/trafficgenerators.git'
+    dest: /home/devel/trafficgenerators
+
+- name: TG:make
+  community.general.make: 
+    chdir: /home/devel/trafficgenerators
+
+
+- name: TG:make install
+  become: yes
+  become_user: root
+  community.general.make: 
+    chdir: /home/devel/trafficgenerators
+    target: install
+
+- name: install nfs-common
+  apt:
+    name: nfs-common
+    state: present
+
+- name: Mount NFS folder
+  ansible.posix.mount:
+   src: nas.lontas.nplab.bth.se:/data/media/LONTAS/ExpControl/KAU
+   path: /home/devel/sharedfolder
+   opts: rw,soft,async,noatime
+   state: absent
+   fstype: nfs
+   boot: yes
+
+- name: Mount NFS folder
+  ansible.posix.mount:
+   src: nas.lontas.nplab.bth.se:/data/media/LONTAS/
+   path: /mnt/LONTAS
+   opts: rw,soft,async,noatime
+   state: mounted
+   fstype: nfs
+   boot: yes
+
+
+- name: Create the log folder (used by udpserver)
+  become: yes
+  become_user: devel
+  ansible.builtin.file:
+    path: /home/devel/logs
+    state: directory
+
+
+- name: Install udpserver (daemon port 2345) service
+  template:
+    src: UDPd.service.j2
+    dest: "/etc/systemd/system/UDPd.service"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable UDPd and reload systemd
+  service:
+    name: UDPd
+    daemon_reload: yes
+    enabled: yes
+    
+- name: Start UDPd
+  service:
+    name: UDPd
+    state: started
+
+- name: Install udpserver echo (daemon port 3456) service
+  template:
+    src: UDPde.service.j2
+    dest: "/etc/systemd/system/UDPde.service"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable UDPde and reload systemd
+  service:
+    name: UDPde
+    daemon_reload: yes
+    enabled: yes
+    
+- name: Start UDPde
+  service:
+    name: UDPde
+    state: started

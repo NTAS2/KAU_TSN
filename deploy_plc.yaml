@@ -1,0 +1,11 @@
+---
+- name: Deploy PLC and envStatus.
+  hosts: nodes
+  remote_user: devel
+  become: yes
+  vars:
+     server: 194.47.151.87
+     plc_port: 1579
+     env_port: 1679	
+  roles:
+    - node

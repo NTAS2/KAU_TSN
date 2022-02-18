@@ -1,0 +1,9 @@
+[nodes]
+tsn1
+tsn2
+tsn3
+tsn4
+
+[all:vars]
+ansible_user=devel
+ansible_python_interpreter=python3

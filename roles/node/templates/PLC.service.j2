@@ -1,0 +1,20 @@
+[Unit]
+Description=Platform Control Service, execute experiments from/on platform. 
+
+
+[Service]
+ExecStart=/usr/bin/perl /home/{{ ansible_user }}/PLC/platformControl.pl
+# Required on some systems
+WorkingDirectory=/mnt/LONTAS/ExpControl
+Restart=always
+# Restart service after 10 seconds if node service crashes
+RestartSec=10
+# Output to syslog
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=plc
+User=devel
+
+
+[Install]
+WantedBy=multi-user.target
